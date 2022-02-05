@@ -7,6 +7,13 @@ Micron MT8JSF12864HZ-1G1F1
 
 -1G1 speed grade: PC-8500 aka 1066 MT/s
 
+Refresh count:			8K
+Row address:			16K ( A[13:0])
+Device bank address:	8 	(BA[ 2:0])
+Device configuration:	1Gb (128 Meg x 8)
+Column address:			1K 	( A[ 9:0])
+Module rank address:	1 S0#
+
 
 DDR3 Modules:
 
