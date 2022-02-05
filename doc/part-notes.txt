@@ -1,6 +1,8 @@
 
 DDR3 DIMMS:
 
+https://media-www.micron.com/-/media/client/global/documents/products/data-sheet/modules/sodimm/jsf8c128_256x64hz.pdf?rev=16284b21b2d64f25ab0d2da80fdc4181
+
 Micron MT8JSF12864HZ-1G1F1
 
 -1G1 speed grade: PC-8500 aka 1066 MT/s
@@ -8,5 +10,13 @@ Micron MT8JSF12864HZ-1G1F1
 
 DDR3 Modules:
 
-MT8JSF12864H(I)Z-1G1__ || 1GB || 128 Meg x 64 || 8.5 GB/s || 1.87ns/1066 MT/s || 7-7-7
+https://media-www.micron.com/-/media/client/global/documents/products/data-sheet/dram/ddr3/1gb_ddr3_sdram.pdf?rev=5d57a940dabe47a3821c5786d52c8aa4
 
+MT41J128M8
+
+Configuration: 		16 Meg x 8 x 8 banks
+Refresh count: 		8K
+Row addressing: 	16K ( A[13:0])
+Bank addressing:	8   (BA[ 2:0])
+Column addressing:	1K  ( A[ 9:0])
+Page size: 			1KB
