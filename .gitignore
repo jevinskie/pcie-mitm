@@ -1,1 +1,3 @@
 *.pyc
+pcie_mitm/ip/pcie_arriav_hip/
+**/.qsys_edit/
