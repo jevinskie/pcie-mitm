@@ -1,0 +1,12 @@
+
+DDR3 DIMMS:
+
+Micron MT8JSF12864HZ-1G1F1
+
+-1G1 speed grade: PC-8500 aka 1066 MT/s
+
+
+DDR3 Modules:
+
+MT8JSF12864H(I)Z-1G1__ || 1GB || 128 Meg x 64 || 8.5 GB/s || 1.87ns/1066 MT/s || 7-7-7
+
