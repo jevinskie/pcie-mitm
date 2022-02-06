@@ -8,10 +8,13 @@ from litex.build.generic_platform import *
 from litex.build.sim import SimPlatform
 from litex.build.sim.config import SimConfig
 
+from litex.soc.interconnect import avalon
+from litex.soc.interconnect import wishbone
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
-from litex.soc.cores.uart import RS232PHYModel
+from pcie_mitm.ip.gpio import AvalonMMGPIO
+
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -67,6 +70,22 @@ class SimSoC(SoCCore):
         self.platform.add_debug(self, reset=0)
 
 #
+        # Leds -------------------------------------------------------------------------------------
+        led_pads = platform.request_all("user_led")
+        if False:
+            self.submodules.leds = LedChaser(
+                pads         = led_pads,
+                sys_clk_freq = sys_clk_freq)
+        else:
+            self.submodules.led_gpio = AvalonMMGPIO(self.platform)
+            for src, sink in zip(self.led_gpio.out_port, led_pads):
+                self.comb += sink.eq(src)
+            self.led_gpio_wb = wishbone.Interface(adr_width=1)
+            self.add_wb_slave(0x9000_0000, self.led_gpio_wb)
+            self.add_memory_region("gpio", 0x9000_0000, length=4, type="io")
+            self.submodules.led_gpi_avmm2wb = avalon.AvalonMM2Wishbone(self.led_gpio.avmm, self.led_gpio_wb)
+
+
 # Main ---------------------------------------------------------------------------------------------
 
 def main():
