@@ -13,8 +13,8 @@ from litex.gen.fhdl.utils import get_signals
 from litex_boards.platforms import hpc_store_arriav_v31 as arriav_board
 
 from litex.soc.cores.clock import ArriaVPLL
-from litex.soc.interconnect.avalon import AvalonMM2Wishbone
-from litex.soc.interconnect.wishbone import Interface as WishboneInterface
+from litex.soc.interconnect import avalon
+from litex.soc.interconnect import wishbone
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.led import LedChaser
@@ -48,25 +48,21 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(150e6), with_led_chaser=True, with_uartbone=False, with_jtagbone=False,
-                 with_ethernet=False, with_etherbone=False, eth_ip=DEFAULT_IP_PREFIX + "50",
-                 eth_dynamic_ip=False,
+    def __init__(self, sys_clk_freq=int(150e6), with_led_chaser=True, with_jtagbone=False,
+                 with_etherbone=False, eth_ip=DEFAULT_IP_PREFIX + "50",
                  **kwargs):
         self.platform = platform = arriav_board.Platform()
 
-        if with_uartbone:
-            kwargs["uart_name"] = "crossover"
-
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, sys_clk_freq,
-            ident = "LiteX SoC on Arria V thingy",
+            ident = "LiteX SoC Avalon-MM<>WB test on Arria V thingy",
             **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = self.crg = _CRG(platform, sys_clk_freq)
 
         # Ethernet ---------------------------------------------------------------------------------
-        if with_ethernet or with_etherbone:
+        if with_etherbone:
             self.platform.toolchain.additional_sdc_commands += [
                 'create_clock -name eth_rx_clk -period 8.0 [get_ports {eth_clocks_rx}]',
                 'create_clock -name eth_tx_clk -period 8.0 [get_ports {eth_clocks_tx}]',
@@ -81,14 +77,8 @@ class BaseSoC(SoCCore):
                 pads       = eth_pads,
                 # clk_freq   = self.sys_clk_freq,
             )
-            if with_ethernet:
-                self.add_ethernet(phy=self.ethphy, dynamic_ip=eth_dynamic_ip)
             if with_etherbone:
                 self.add_etherbone(phy=self.ethphy, ip_address=eth_ip)
-
-        # UARTbone ---------------------------------------------------------------------------------
-        if with_uartbone:
-            self.add_uartbone(name=kwargs["uart_name"], baudrate=kwargs["uart_baudrate"])
 
         # JTAGbone ---------------------------------------------------------------------------------
         if with_jtagbone:
@@ -107,21 +97,24 @@ class BaseSoC(SoCCore):
             self.submodules.led_gpio = AvalonMMGPIO(self.platform)
             for src, sink in zip(self.led_gpio.out_port, led_pads):
                 self.comb += sink.eq(src)
-            self.led_gpio_wb = WishboneInterface()
-            self.add_wb_slave(0x2000_0000, self.led_gpio_wb)
-            self.submodules.led_gpi_avmm2wb = AvalonMM2Wishbone(self.led_gpio.avmm, self.led_gpio_wb)
+            self.led_gpio_wb = wishbone.Interface()
+            # self.add_wb_slave(0x2000_0000, self.led_gpio_wb)
+            # self.add_memory_region("gpio", 0x2000_0000, length=4)
+            self.submodules.led_gpi_avmm2wb = avalon.AvalonMM2Wishbone(self.led_gpio.avmm, self.led_gpio_wb)
 
         if True:
             analyzer_signals = set([
                 *get_signals(led_pads),
-                *get_signals(self.led_gpio),
+                # *get_signals(self.led_gpio),
+                # *get_signals(self.led_gpio_wb),
+                # *get_signals(self.led_gpi_avmm2wb),
             ])
             analyzer_signals_denylist = set([
             ])
             analyzer_signals -= analyzer_signals_denylist
             analyzer_signals = list(analyzer_signals)
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
-                depth        = 256*1,
+                depth        = 64*1,
                 register     = True,
                 clock_domain = "sys",
                 samplerate   = sys_clk_freq,
@@ -142,12 +135,8 @@ def main():
     parser.add_argument("--build",               action="store_true", help="Build bitstream.")
     parser.add_argument("--load",                action="store_true", help="Load bitstream.")
     parser.add_argument("--sys-clk-freq",        default=150e6,       help="System clock frequency.")
-    ethopts = parser.add_mutually_exclusive_group()
-    ethopts.add_argument("--with-ethernet",      action="store_true", help="Enable Ethernet support.")
-    ethopts.add_argument("--with-etherbone",     action="store_true", help="Enable Etherbone support.")
+    parser.add_argument("--with-etherbone",     action="store_true", help="Enable Etherbone support.")
     parser.add_argument("--eth-ip",              default=DEFAULT_IP_PREFIX + "50", type=str, help="Ethernet/Etherbone IP address.")
-    parser.add_argument("--eth-dynamic-ip",      action="store_true", help="Enable dynamic Ethernet IP addresses setting.")
-    parser.add_argument("--with-uartbone",       action="store_true", help="Enable UARTbone support.")
     parser.add_argument("--with-jtagbone",       action="store_true", help="Enable JTAGbone support.")
     builder_args(parser)
     soc_core_args(parser)
@@ -156,7 +145,7 @@ def main():
     argparse_set_def(parser, 'uart_baudrate', 2_000_000)
     argparse_set_def(parser, 'integrated_rom_size', 32*1024)
     argparse_set_def(parser, 'integrated_sram_size', 4*1024)
-    argparse_set_def(parser, 'cpu_type', 'None')
+    argparse_set_def(parser, 'cpu_type', 'picorv32')
     argparse_set_def(parser, 'with_jtagbone', False)
     argparse_set_def(parser, 'with_etherbone', True)
     argparse_set_def(parser, 'csr_csv', 'csr.csv')
@@ -166,11 +155,8 @@ def main():
 
     soc = BaseSoC(
         sys_clk_freq             = int(float(args.sys_clk_freq)),
-        with_ethernet            = args.with_ethernet,
         with_etherbone           = args.with_etherbone,
         eth_ip                   = args.eth_ip,
-        eth_dynamic_ip           = args.eth_dynamic_ip,
-        with_uartbone            = args.with_uartbone,
         with_jtagbone            = args.with_jtagbone,
         **soc_core_argdict(args)
     )
