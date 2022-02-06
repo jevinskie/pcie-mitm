@@ -2,25 +2,6 @@
 
 import math
 
-import numpy as np
-import scipy.special as sc
-
-from rich import print as rprint
-
-def ent(buf):
-    freqs = [0] * 256
-    for b in buf:
-        freqs[b] += 1
-    num_bytes = len(buf)
-    freqs = map(lambda cnt: cnt / num_bytes, freqs)
-    ent = 0
-    for freq in freqs:
-        if freq == 0:
-            continue
-        ent += freq * math.log2(freq)
-    ent *= -1
-    return ent
-
 def ent_dec(buf):
     freqs = [0] * 10
     norm_buf = []
@@ -34,12 +15,15 @@ def ent_dec(buf):
     num_bytes = len(norm_buf)
     freqs = map(lambda cnt: cnt / num_bytes, freqs)
     ent = 0
+    nsyms = 0
     for freq in freqs:
         if freq == 0:
             continue
+        nsyms += 1
         ent += freq * math.log2(freq)
-    ent *= -1
-    return ent
+    if ent:
+        ent *= -1
+    return ent, nsyms
 
 def ent_hex(buf):
     freqs = [0] * 16
@@ -60,22 +44,42 @@ def ent_hex(buf):
     num_bytes = len(norm_buf)
     freqs = map(lambda cnt: cnt / num_bytes, freqs)
     ent = 0
+    nsyms = 0
     for freq in freqs:
         if freq == 0:
             continue
+        nsyms += 1
         ent += freq * math.log2(freq)
-    ent *= -1
-    return ent
-
-def binary_entropy(x):
-    return -(sc.xlogy(x, x) + sc.xlog1py(1 - x, -x)) / np.log(2)
+    if ent:
+        ent *= -1
+    return ent, nsyms
 
 def smrt_ltrl(n):
-    return n
+    d = str(n).encode('utf8')
+    h = hex(n).encode('utf8')[2:]
+    dl, hl = len(d), len(h)
+    ed, nsymsd = ent_dec(d)
+    eh, nsymsh = ent_hex(h)
+    print(f"d: {d} ed: {ed:0.3f} nsymsd: {nsymsd}")
+    print(f"h: {h} ed: {eh:0.3f} nsymsh: {nsymsh}")
+    frac_unique_d = nsymsd / dl
+    frac_unique_h = nsymsh / hl
+    print(f"frac_unique: d: {frac_unique_d:0.3f} h: {frac_unique_h:0.3f}")
+    nzd = d.count(b'0')
+    nzh = h.count(b'0')
+    print(f"nzd: {nzd} nzh: {nzh}")
 
-for n in (1, 4, 16, 42, 243, 256, 1000, 1024, 4000, 4096):
+    if frac_unique_d < frac_unique_h:
+        return str(n)
+    elif frac_unique_h < frac_unique_d:
+        return hex(n)
+
+    if ed < eh:
+        return str(n)
+    elif eh < ed:
+        return hex(n)
+
+    return str(n)
+
+for n in (1, 4, 16, 42, 243, 256, 1000, 1024, 4000, 4096, 1223334444, 603979776):
     print(f"n: {n} n hex: {hex(n)} smrt_ltrl: {smrt_ltrl(n)}")
-    print("ent:     (dec) {:0.3f}".format(ent(str(n).encode('utf8'))))
-    print("ent:     (hex) {:0.3f}".format(ent(hex(n)[2:].encode('utf8'))))
-    print("ent_dec: (dec) {:0.3f}".format(ent_dec(str(n).encode('utf8'))))
-    print("ent_hex: (hex) {:0.3f}".format(ent_hex(hex(n).encode('utf8'))))
