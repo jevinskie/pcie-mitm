@@ -2,7 +2,8 @@
 
 import math
 
-def ent_dec(buf):
+def _ent_dec(buf):
+    """Get the entropy of a decimal byte-string [0-9]"""
     freqs = [0] * 10
     norm_buf = []
     for b in buf:
@@ -21,11 +22,12 @@ def ent_dec(buf):
             continue
         nsyms += 1
         ent += freq * math.log2(freq)
-    if ent:
-        ent *= -1
+    if ent: # avoid -0.0
+        ent = -ent
     return ent, nsyms
 
-def ent_hex(buf):
+def _ent_hex(buf):
+    """Get the entropy of a decimal byte-string [0-9a-z]"""
     freqs = [0] * 16
     norm_buf = []
     if buf.startswith(b'0x'):
@@ -35,8 +37,6 @@ def ent_hex(buf):
             norm_buf.append(b - ord('0'))
         elif ord('a') <= b <= ord('f'):
             norm_buf.append(b - ord('a') + 10)
-        elif ord('A') <= b <= ord('F'):
-            norm_buf.append(b - ord('A') + 10)
         else:
             raise ValueError(f"not a hex digit: '{chr(b)}'")
     for b in norm_buf:
@@ -50,36 +50,48 @@ def ent_hex(buf):
             continue
         nsyms += 1
         ent += freq * math.log2(freq)
-    if ent:
-        ent *= -1
+    if ent: # avoid -0.0
+        ent = -ent
     return ent, nsyms
 
-def smrt_ltrl(n):
+def _is_pretty_base_hex(n):
+    if n < 0:
+        n = -n
+
+    if n == 0:
+        return False
+
+    if math.log10(n) == int(math.log10(n)):
+        return False
+    if math.log2(n) == int(math.log2(n)) and n >= 16:
+        return True
+
     d = str(n).encode('utf8')
     h = hex(n).encode('utf8')[2:]
     dl, hl = len(d), len(h)
-    ed, nsymsd = ent_dec(d)
-    eh, nsymsh = ent_hex(h)
-    print(f"d: {d} ed: {ed:0.3f} nsymsd: {nsymsd}")
-    print(f"h: {h} ed: {eh:0.3f} nsymsh: {nsymsh}")
+    ed, nsymsd = _ent_dec(d)
+    eh, nsymsh = _ent_hex(h)
     frac_unique_d = nsymsd / dl
     frac_unique_h = nsymsh / hl
-    print(f"frac_unique: d: {frac_unique_d:0.3f} h: {frac_unique_h:0.3f}")
-    nzd = d.count(b'0')
-    nzh = h.count(b'0')
-    print(f"nzd: {nzd} nzh: {nzh}")
 
     if frac_unique_d < frac_unique_h:
-        return str(n)
+        return False
     elif frac_unique_h < frac_unique_d:
-        return hex(n)
+        return True
+
+    if n < 1000:
+        return False
 
     if ed < eh:
-        return str(n)
+        return False
     elif eh < ed:
-        return hex(n)
+        return True
 
-    return str(n)
+    return False
 
-for n in (1, 4, 16, 42, 243, 256, 1000, 1024, 4000, 4096, 1223334444, 603979776):
-    print(f"n: {n} n hex: {hex(n)} smrt_ltrl: {smrt_ltrl(n)}")
+
+for n in (1, 4, 9, 10, 11, 12, 13, 14, 15, 16, 42, 99, 100, 101, 243, 256, 1000, 1024, 4000, 4096, 1223334444, 603979776):
+    is_hex = _is_pretty_base_hex(n)
+    base_fmt = ":x" if is_hex else ":d"
+    fmt = "n: {} n hex: {} smrt_ltrl: {}{" + base_fmt + "}"
+    print(fmt.format(n, hex(n), "0x" if is_hex else "", n))

@@ -9,9 +9,12 @@ from litex.soc.interconnect import wishbone
 
 class AvalonMMGPIO(Module):
     def __init__(self, platform):
-        platform.add_ip((Path(__file__).parent / "gpio.qsys").resolve())
-        self.avmm     = avalon.AvalonMMInterface(adr_width=2)
-        self.out_port = Signal(8)
+        # platform.add_ip((Path(__file__).parent / "gpio.qsys").resolve())
+        platform.add_source((Path(__file__).parent / "gpio.v").resolve())
+        self.avmm      = avalon.AvalonMMInterface(adr_width=3)
+        # self.addr      = Signal(3)
+        self.out_port  = Signal(8)
+        # self.comb     += self.addr.eq(self.avmm.address)
         self.specials += Instance("gpio_pio",
             i_clk        =  ClockSignal(),
             i_reset_n    = ~ResetSignal(),
