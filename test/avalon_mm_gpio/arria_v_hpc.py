@@ -6,7 +6,6 @@
 # Copyright (c) 2022 Jevin Sweval <jevinsweval@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import os
 import argparse
 
 from migen import *
@@ -23,6 +22,8 @@ from litex.config import DEFAULT_IP_PREFIX
 from liteeth.phy.gmii import LiteEthPHYGMII
 
 from litescope.core import LiteScopeAnalyzer
+
+from pcie_mitm.ip.gpio import AvalonMMGPIO
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -96,14 +97,19 @@ class BaseSoC(SoCCore):
 
         # Leds -------------------------------------------------------------------------------------
         led_pads = platform.request_all("user_led")
-        if with_led_chaser:
+        if False:
             self.submodules.leds = LedChaser(
                 pads         = led_pads,
                 sys_clk_freq = sys_clk_freq)
+        else:
+            self.submodules.led_gpio = AvalonMMGPIO(self.platform)
+            for src, sink in zip(self.led_gpio.out_port, led_pads):
+                self.comb += sink.eq(src)
 
         if True:
             analyzer_signals = set([
                 *get_signals(led_pads),
+                *get_signals(self.led_gpio),
             ])
             analyzer_signals_denylist = set([
             ])
@@ -146,8 +152,8 @@ def main():
     argparse_set_def(parser, 'integrated_rom_size', 32*1024)
     argparse_set_def(parser, 'integrated_sram_size', 4*1024)
     argparse_set_def(parser, 'cpu_type', 'None')
-    argparse_set_def(parser, 'with_jtagbone', True)
-    argparse_set_def(parser, 'with_etherbone', False)
+    argparse_set_def(parser, 'with_jtagbone', False)
+    argparse_set_def(parser, 'with_etherbone', True)
     argparse_set_def(parser, 'csr_csv', 'csr.csv')
 
 
