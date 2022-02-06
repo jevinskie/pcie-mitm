@@ -99,15 +99,15 @@ class BaseSoC(SoCCore):
                 self.comb += sink.eq(src)
             self.led_gpio_wb = wishbone.Interface()
             # self.add_wb_slave(0x2000_0000, self.led_gpio_wb)
-            # self.add_memory_region("gpio", 0x2000_0000, length=4)
+            self.add_memory_region("gpio", 0x2000_0000, length=4)
             self.submodules.led_gpi_avmm2wb = avalon.AvalonMM2Wishbone(self.led_gpio.avmm, self.led_gpio_wb)
 
         if True:
             analyzer_signals = set([
                 *get_signals(led_pads),
-                # *get_signals(self.led_gpio),
-                # *get_signals(self.led_gpio_wb),
-                # *get_signals(self.led_gpi_avmm2wb),
+                *get_signals(self.led_gpio),
+                *get_signals(self.led_gpio_wb),
+                *get_signals(self.led_gpi_avmm2wb),
             ])
             analyzer_signals_denylist = set([
             ])
