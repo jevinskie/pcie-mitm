@@ -95,16 +95,16 @@ class BaseSoC(SoCCore):
             self.add_jtagbone()
 
         # Leds -------------------------------------------------------------------------------------
+        led_pads = platform.request_all("user_led")
         if with_led_chaser:
             self.submodules.leds = LedChaser(
-                pads         = platform.request_all("user_led"),
+                pads         = led_pads,
                 sys_clk_freq = sys_clk_freq)
 
         if True:
             analyzer_signals = set([
-                *get_signals(self.leds.pads),
+                *get_signals(led_pads),
             ])
-            print(analyzer_signals)
             analyzer_signals_denylist = set([
             ])
             analyzer_signals -= analyzer_signals_denylist
@@ -141,12 +141,13 @@ def main():
     builder_args(parser)
     soc_core_args(parser)
 
+    # argparse_set_def(parser, 'uart_name', 'crossover')
     argparse_set_def(parser, 'uart_baudrate', 2_000_000)
     argparse_set_def(parser, 'integrated_rom_size', 32*1024)
     argparse_set_def(parser, 'integrated_sram_size', 4*1024)
-    argparse_set_def(parser, 'cpu_type', 'picorv32')
-    # argparse_set_def(parser, 'with_jtagbone', True)
-    argparse_set_def(parser, 'with_etherbone', True)
+    argparse_set_def(parser, 'cpu_type', 'None')
+    argparse_set_def(parser, 'with_jtagbone', True)
+    argparse_set_def(parser, 'with_etherbone', False)
     argparse_set_def(parser, 'csr_csv', 'csr.csv')
 
 
