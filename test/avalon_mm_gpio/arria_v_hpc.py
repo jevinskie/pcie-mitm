@@ -13,6 +13,8 @@ from litex.gen.fhdl.utils import get_signals
 from litex_boards.platforms import hpc_store_arriav_v31 as arriav_board
 
 from litex.soc.cores.clock import ArriaVPLL
+from litex.soc.interconnect.avalon import AvalonMM2Wishbone
+from litex.soc.interconnect.wishbone import Interface as WishboneInterface
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.led import LedChaser
@@ -105,6 +107,9 @@ class BaseSoC(SoCCore):
             self.submodules.led_gpio = AvalonMMGPIO(self.platform)
             for src, sink in zip(self.led_gpio.out_port, led_pads):
                 self.comb += sink.eq(src)
+            self.led_gpio_wb = WishboneInterface()
+            self.add_wb_slave(0x2000_0000, self.led_gpio_wb)
+            self.submodules.led_gpi_avmm2wb = AvalonMM2Wishbone(self.led_gpio.avmm, self.led_gpio_wb)
 
         if True:
             analyzer_signals = set([
