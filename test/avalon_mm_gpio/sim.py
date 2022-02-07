@@ -4,6 +4,8 @@ import argparse
 
 from migen import *
 
+from litex.gen.fhdl.utils import get_signals
+
 from litex.build.generic_platform import *
 from litex.build.sim import SimPlatform
 from litex.build.sim.config import SimConfig
@@ -13,6 +15,10 @@ from litex.soc.interconnect import avalon
 from litex.soc.interconnect import wishbone
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
+
+from liteeth.phy.model import LiteEthPHYModel
+
+from litescope import LiteScopeAnalyzer
 
 from pcie_mitm.ip.gpio import AvalonMMGPIO
 
@@ -31,6 +37,20 @@ _io = [
         Subsignal("sink_ready",   Pins(1)),
         Subsignal("sink_data",    Pins(8)),
     ),
+
+    ("eth_clocks", 0,
+     Subsignal("tx", Pins(1)),
+     Subsignal("rx", Pins(1)),
+     ),
+    ("eth", 0,
+     Subsignal("source_valid", Pins(1)),
+     Subsignal("source_ready", Pins(1)),
+     Subsignal("source_data", Pins(8)),
+
+     Subsignal("sink_valid", Pins(1)),
+     Subsignal("sink_ready", Pins(1)),
+     Subsignal("sink_data", Pins(8)),
+     ),
 
     # Leds.
     ("user_led", 0, Pins(1)),
@@ -52,7 +72,7 @@ class Platform(SimPlatform):
 # Bench SoC ----------------------------------------------------------------------------------------
 
 class SimSoC(SoCCore):
-    def __init__(self, sys_clk_freq = None, **kwargs):
+    def __init__(self, sys_clk_freq = None, trace=False, **kwargs):
         platform     = Platform()
         sys_clk_freq = int(sys_clk_freq)
 
@@ -68,9 +88,12 @@ class SimSoC(SoCCore):
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # Trace ------------------------------------------------------------------------------------
-        self.platform.add_debug(self, reset=1)
+        self.platform.add_debug(self, reset=trace)
 
-#
+        # Etherbone --------------------------------------------------------------------------------
+        self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth"))
+        self.add_etherbone(phy=self.ethphy, ip_address = "192.168.42.50", buffer_depth=16*4096-1)
+
         # Leds -------------------------------------------------------------------------------------
         led_pads = platform.request_all("user_led")
         if False:
@@ -87,6 +110,25 @@ class SimSoC(SoCCore):
             self.submodules.led_gpio_avmm2wb = avalon.AvalonMM2Wishbone(self.led_gpio.avmm, self.led_gpio_wb)
 
 
+        if True:
+            analyzer_signals = set([
+                *get_signals(led_pads),
+                *get_signals(self.led_gpio),
+                *get_signals(self.led_gpio_wb),
+                *get_signals(self.led_gpio_avmm2wb),
+            ])
+            analyzer_signals_denylist = set([
+            ])
+            analyzer_signals -= analyzer_signals_denylist
+            analyzer_signals = list(analyzer_signals)
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                depth        = 64*1,
+                register     = True,
+                clock_domain = "sys",
+                samplerate   = sys_clk_freq,
+                csr_csv      = "analyzer.csv")
+
+
 # Main ---------------------------------------------------------------------------------------------
 
 def main():
@@ -101,6 +143,8 @@ def main():
     sim_config = SimConfig()
     sim_config.add_clocker("sys_clk", freq_hz=args.sys_clk_freq)
     sim_config.add_module("serial2console", "serial")
+    sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.42.100"})
+
 
     soc_kwargs     = soc_core_argdict(args)
     builder_kwargs = builder_argdict(args)
@@ -114,6 +158,7 @@ def main():
     builder_kwargs['csr_csv'] = 'csr.csv'
 
     soc     = SimSoC(
+        trace=args.trace,
         trace_reset_on=int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
         **soc_kwargs)
     if not args.debug_soc_gen:
