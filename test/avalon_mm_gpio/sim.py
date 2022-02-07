@@ -7,6 +7,7 @@ from migen import *
 from litex.build.generic_platform import *
 from litex.build.sim import SimPlatform
 from litex.build.sim.config import SimConfig
+from litex.build.sim.verilator import verilator_build_args, verilator_build_argdict
 
 from litex.soc.interconnect import avalon
 from litex.soc.interconnect import wishbone
@@ -67,7 +68,7 @@ class SimSoC(SoCCore):
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # Trace ------------------------------------------------------------------------------------
-        self.platform.add_debug(self, reset=0)
+        self.platform.add_debug(self, reset=1)
 
 #
         # Leds -------------------------------------------------------------------------------------
@@ -80,10 +81,10 @@ class SimSoC(SoCCore):
             self.submodules.led_gpio = AvalonMMGPIO(self.platform)
             for src, sink in zip(self.led_gpio.out_port, led_pads):
                 self.comb += sink.eq(src)
-            self.led_gpio_wb = wishbone.Interface(adr_width=1)
-            self.add_wb_slave(0x9000_0000, self.led_gpio_wb)
+            self.led_gpio_wb = wishbone.Interface(adr_width=2)
             self.add_memory_region("gpio", 0x9000_0000, length=4, type="io")
-            self.submodules.led_gpi_avmm2wb = avalon.AvalonMM2Wishbone(self.led_gpio.avmm, self.led_gpio_wb)
+            self.add_wb_slave(0x9000_0000, self.led_gpio_wb)
+            self.submodules.led_gpio_avmm2wb = avalon.AvalonMM2Wishbone(self.led_gpio.avmm, self.led_gpio_wb)
 
 
 # Main ---------------------------------------------------------------------------------------------
@@ -91,12 +92,10 @@ class SimSoC(SoCCore):
 def main():
     parser = argparse.ArgumentParser(description="LiteEth Bench Simulation")
     parser.add_argument("--sys-clk-freq",         default=200e6,           help="System clock frequency (default: 200MHz)")
-    parser.add_argument("--trace",                action="store_true",     help="Enable Tracing")
-    parser.add_argument("--trace-cycles",         default=128,             help="Number of cycles to trace")
-    parser.add_argument("--opt-level",            default="O3",            help="Verilator optimization level")
     parser.add_argument("--debug-soc-gen",        action="store_true",     help="Don't run simulation")
     builder_args(parser)
     soc_core_args(parser)
+    verilator_build_args(parser)
     args = parser.parse_args()
 
     sim_config = SimConfig()
@@ -105,6 +104,7 @@ def main():
 
     soc_kwargs     = soc_core_argdict(args)
     builder_kwargs = builder_argdict(args)
+    verilator_build_kwargs = verilator_build_argdict(args)
 
     soc_kwargs['sys_clk_freq'] = int(args.sys_clk_freq)
     soc_kwargs['uart_name'] = 'sim'
@@ -113,7 +113,9 @@ def main():
     soc_kwargs['cpu_variant'] = 'quark'
     builder_kwargs['csr_csv'] = 'csr.csv'
 
-    soc     = SimSoC(**soc_kwargs)
+    soc     = SimSoC(
+        trace_reset_on=int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
+        **soc_kwargs)
     if not args.debug_soc_gen:
         builder = Builder(soc, **builder_kwargs)
         for i in range(2):
@@ -123,8 +125,7 @@ def main():
                 build=build,
                 run=run,
                 sim_config=sim_config,
-                trace=args.trace,
-                opt_level=args.opt_level,
+                **verilator_build_kwargs,
             )
 
 if __name__ == "__main__":
