@@ -97,9 +97,9 @@ class BaseSoC(SoCCore):
             self.submodules.led_gpio = AvalonMMGPIO(self.platform)
             for src, sink in zip(self.led_gpio.out_port, led_pads):
                 self.comb += sink.eq(src)
-            self.led_gpio_wb = wishbone.Interface(adr_width=1)
+            self.led_gpio_wb = wishbone.Interface(adr_width=2)
+            self.add_memory_region("gpio", 0x9000_0000, length=4*4, type="io")
             self.add_wb_slave(0x9000_0000, self.led_gpio_wb)
-            self.add_memory_region("gpio", 0x9000_0000, length=4, type="io")
             self.submodules.led_gpi_avmm2wb = avalon.AvalonMM2Wishbone(self.led_gpio.avmm, self.led_gpio_wb)
 
         if True:

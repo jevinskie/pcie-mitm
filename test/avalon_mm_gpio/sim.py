@@ -88,7 +88,7 @@ class SimSoC(SoCCore):
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # Trace ------------------------------------------------------------------------------------
-        self.platform.add_debug(self, reset=trace)
+        self.platform.add_debug(self, reset=0)
 
         # Etherbone --------------------------------------------------------------------------------
         self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth"))
@@ -105,7 +105,7 @@ class SimSoC(SoCCore):
             for src, sink in zip(self.led_gpio.out_port, led_pads):
                 self.comb += sink.eq(src)
             self.led_gpio_wb = wishbone.Interface(adr_width=2)
-            self.add_memory_region("gpio", 0x9000_0000, length=4, type="io")
+            self.add_memory_region("gpio", 0x9000_0000, length=4*4, type="io")
             self.add_wb_slave(0x9000_0000, self.led_gpio_wb)
             self.submodules.led_gpio_avmm2wb = avalon.AvalonMM2Wishbone(self.led_gpio.avmm, self.led_gpio_wb)
 
