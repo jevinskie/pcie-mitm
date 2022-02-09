@@ -88,7 +88,10 @@ class BaseSoC(SoCCore):
             self.add_jtagbone()
 
         # Leds -------------------------------------------------------------------------------------
-        led_pads = platform.request_all("user_led")
+        # led_pads = platform.request_all("user_led")
+        led_pads = []
+        for i in range(8):
+            led_pads.append(platform.request("user_led"))
         if False:
             self.submodules.leds = LedChaser(
                 pads         = led_pads,
@@ -97,6 +100,8 @@ class BaseSoC(SoCCore):
             self.submodules.led_gpio = AvalonMMGPIO(self.platform)
             for src, sink in zip(self.led_gpio.out_port, led_pads):
                 self.comb += sink.eq(src)
+            # for i in range(8):
+            #     self.comb += led_pads[i].eq(self.led_gpio.out_port[i])
             self.led_gpio_wb = wishbone.Interface(adr_width=2)
             self.add_memory_region("gpio", 0x9000_0000, length=4*4, type="io")
             self.add_wb_slave(0x9000_0000, self.led_gpio_wb)
